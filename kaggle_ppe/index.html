@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Safety Dashboard</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            color: #e2e8f0;
+            overflow: hidden;
+            height: 100vh;
+        }
+
+        .dashboard-container {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            padding: 16px;
+            gap: 16px;
+        }
+
+        .dashboard-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(30, 41, 59, 0.8);
+            backdrop-filter: blur(10px);
+            border-radius: 12px;
+            padding: 16px 24px;
+            border: 1px solid rgba(148, 163, 184, 0.1);
+            flex-shrink: 0; /* Prevent header from shrinking */
+        }
+
+        .dashboard-title {
+            font-size: 20px;
+            font-weight: 600;
+            background: linear-gradient(135deg, #60a5fa 0%, #3b82f6 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #10b981;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+
+        .status-text {
+            font-size: 12px;
+            font-weight: 500;
+            color: #94a3b8;
+        }
+
+        .dashboard-main {
+            display: grid;
+            grid-template-columns: 1.5fr 1fr;
+            gap: 16px;
+            height: calc(100% - 80px);
+        }
+
+        .video-section {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .video-container {
+            flex: 1;
+            background: rgba(30, 41, 59, 0.8);
+            border-radius: 12px;
+            overflow: hidden;
+            position: relative;
+            border: 1px solid rgba(148, 163, 184, 0.1);
+            min-height: 200px;
+        }
+
+        #videoStream {
+            width: 100%;
+            height: 90%;
+            object-fit: cover;
+        }
+
+        .video-overlay {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            background: rgba(239, 68, 68, 0.9);
+            color: white;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 600;
+            animation: blink 1s infinite;
+        }
+
+        @keyframes blink {
+            0%, 50% { opacity: 1; }
+            51%, 100% { opacity: 0.7; }
+        }
+
+        .counts-section {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 16px;
+            align-content: start;
+        }
+
+        .count-card {
+            background: rgba(30, 41, 59, 0.8);
+            backdrop-filter: blur(10px);
+            border-radius: 16px;
+            padding: 24px;
+            border: 1px solid rgba(148, 163, 184, 0.1);
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+            min-height: 110px;
+        }
+
+        .count-card::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 4px;
+            background: linear-gradient(180deg, #60a5fa 0%, #3b82f6 100%);
+        }
+
+        .count-card:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
+        }
+
+        .count-icon {
+            font-size: 36px;
+            filter: grayscale(0.3);
+            margin-left: 8px;
+        }
+
+        .count-info {
+            flex: 1;
+        }
+
+        .count-label {
+            font-size: 12px;
+            font-weight: 500;
+            color: #94a3b8;
+            margin-bottom: 2px;
+            line-height: 1.2;
+        }
+
+        .count-value {
+            font-size: 28px;
+            font-weight: 700;
+            color: #f1f5f9;
+        }
+
+        .count-card.compliant::before {
+            background: linear-gradient(180deg, #10b981 0%, #059669 100%);
+        }
+
+        .count-card.non-compliant::before {
+            background: linear-gradient(180deg, #ef4444 0%, #dc2626 100%);
+        }
+
+        .count-card.machinery::before {
+            background: linear-gradient(180deg, #f59e0b 0%, #d97706 100%);
+        }
+
+        @media (max-width: 768px) {
+            .dashboard-main {
+                grid-template-columns: 1fr;
+                grid-template-rows: 200px 1fr;
+            }
+            
+            .dashboard-container {
+                padding: 12px;
+            }
+            
+            .dashboard-header {
+                padding: 12px 16px;
+            }
+            
+            .dashboard-title {
+                font-size: 16px;
+            }
+            
+            .counts-section {
+                gap: 8px;
+            }
+            
+            .count-card {
+                padding: 12px;
+                min-height: 70px;
+            }
+            
+            .count-icon {
+                font-size: 24px;
+            }
+            
+            .count-value {
+                font-size: 18px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="dashboard-container">
+        <header class="dashboard-header">
+            <h1 class="dashboard-title">Safety Dashboard</h1>
+            <div class="status-indicator">
+                <div class="status-dot"></div>
+                <span class="status-text">Live</span>
+            </div>
+        </header>
+        
+        <main class="dashboard-main">
+            <div class="video-section">
+                <div class="video-container">
+                    <img id="videoStream" src="http://192.168.1.12:5000/video" alt="Live Video Stream">
+                    <div class="video-overlay">
+                        <div class="video-status">LIVE</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="counts-section">
+                <div class="count-card">
+                    <div class="count-icon">👥</div>
+                    <div class="count-info">
+                        <h3 class="count-label">Total People</h3>
+                        <p class="count-value" id="personCount">0</p>
+                    </div>
+                </div>
+                
+                <div class="count-card compliant">
+                    <div class="count-icon">🪖</div>
+                    <div class="count-info">
+                        <h3 class="count-label">Hardhat Compliant</h3>
+                        <p class="count-value" id="hardhatCount">0</p>
+                    </div>
+                </div>
+                
+                <div class="count-card non-compliant">
+                    <div class="count-icon">⚠️</div>
+                    <div class="count-info">
+                        <h3 class="count-label">No Hardhat</h3>
+                        <p class="count-value" id="noHardhatCount">0</p>
+                    </div>
+                </div>
+                
+                <div class="count-card compliant">
+                    <div class="count-icon">🦺</div>
+                    <div class="count-info">
+                        <h3 class="count-label">Safety Vest Compliant</h3>
+                        <p class="count-value" id="safetyVestCount">0</p>
+                    </div>
+                </div>
+                
+                <div class="count-card non-compliant">
+                    <div class="count-icon">🚫</div>
+                    <div class="count-info">
+                        <h3 class="count-label">No Safety Vest</h3>
+                        <p class="count-value" id="noSafetyVestCount">0</p>
+                    </div>
+                </div>
+                
+                <div class="count-card machinery">
+                    <div class="count-icon">🏗️</div>
+                    <div class="count-info">
+                        <h3 class="count-label">Machinery Detected</h3>
+                        <p class="count-value" id="machineryCount">0</p>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+    
+    <script>
+        class SafetyDashboard {
+            constructor() {
+                this.countsEndpoint = 'http://192.168.1.12:5000/counts';
+                this.updateInterval = 1000;
+                this.init();
+            }
+
+            init() {
+                this.startDataFetching();
+                this.setupVideoStream();
+            }
+
+            async fetchCounts() {
+                try {
+                    const response = await fetch(this.countsEndpoint);
+                    console.log(response)
+                    if (!response.ok) throw new Error('Failed to fetch counts');
+                    return await response.json();
+                } catch (error) {
+                    console.error('Error fetching counts:', error);
+                    return null;
+                }
+            }
+
+            updateCountsDisplay(counts) {
+                if (!counts) return;
+
+                const elements = {
+                    personCount: document.getElementById('personCount'),
+                    hardhatCount: document.getElementById('hardhatCount'),
+                    noHardhatCount: document.getElementById('noHardhatCount'),
+                    safetyVestCount: document.getElementById('safetyVestCount'),
+                    noSafetyVestCount: document.getElementById('noSafetyVestCount'),
+                    machineryCount: document.getElementById('machineryCount')
+                };
+
+                Object.keys(elements).forEach(key => {
+                    const element = elements[key];
+                    const dataKey = this.mapElementToDataKey(key);
+                    const newValue = counts[dataKey] || 0;
+                    const currentValue = parseInt(element.textContent);
+                    
+                    if (newValue !== currentValue) {
+                        this.animateValueChange(element, currentValue, newValue);
+                    }
+                });
+            }
+
+            mapElementToDataKey(elementId) {
+                const mapping = {
+                    'personCount': 'Person',
+                    'hardhatCount': 'Hardhat',
+                    'noHardhatCount': 'NO-Hardhat',
+                    'safetyVestCount': 'Safety Vest',
+                    'noSafetyVestCount': 'NO-Safety Vest',
+                    'machineryCount': 'Machinery'
+                };
+                return mapping[elementId];
+            }
+
+            animateValueChange(element, start, end) {
+                const duration = 500;
+                const startTime = performance.now();
+                
+                const animate = (currentTime) => {
+                    const elapsed = currentTime - startTime;
+                    const progress = Math.min(elapsed / duration, 1);
+                    
+                    const current = Math.floor(start + (end - start) * progress);
+                    element.textContent = current;
+                    
+                    if (progress < 1) {
+                        requestAnimationFrame(animate);
+                    }
+                };
+                
+                requestAnimationFrame(animate);
+            }
+
+            async startDataFetching() {
+                const updateData = async () => {
+                    const counts = await this.fetchCounts();
+                    console.log(counts[0])
+                    this.updateCountsDisplay(counts[0]);
+                };
+
+                await updateData();
+                setInterval(updateData, this.updateInterval);
+            }
+
+            setupVideoStream() {
+                const videoElement = document.getElementById('videoStream');
+                
+                videoElement.onerror = () => {
+                    console.error('Video stream error');
+                    videoElement.style.display = 'none';
+                    
+                    const fallback = document.createElement('div');
+                    fallback.className = 'video-fallback';
+                    fallback.innerHTML = `
+                        <div class="fallback-content">
+                            <div class="fallback-icon">📹</div>
+                            <p>Video stream unavailable</p>
+                        </div>
+                    `;
+                    videoElement.parentElement.appendChild(fallback);
+                };
+
+                videoElement.src = `http://192.168.1.12:5000/video?t=${Date.now()}`;
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            new SafetyDashboard();
+        });
+    </script>
+</body>
+</html>
