@@ -3,421 +3,887 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Safety Dashboard</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <title>PPE Safety Monitor - Computer Vision Demo</title>
     <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+        
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
         }
 
+        :root {
+            --primary-bg: #0a0b0d;
+            --secondary-bg: #1a1d23;
+            --accent-bg: #2a2d35;
+            --success: #10b981;
+            --danger: #ef4444;
+            --warning: #f59e0b;
+            --text-primary: #ffffff;
+            --text-secondary: #9ca3af;
+            --border-color: #374151;
+        }
+
         body {
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
-            color: #e2e8f0;
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, var(--primary-bg) 0%, #1a1d23 100%);
+            color: var(--text-primary);
+            height: 100vh;
             overflow: hidden;
-            height: 100vh;
         }
 
-        .dashboard-container {
-            display: flex;
-            flex-direction: column;
-            height: 100vh;
-            padding: 16px;
-            gap: 16px;
-        }
-
-        .dashboard-header {
+        /* Top Navigation - Fixed Height */
+        .navbar {
+            background: rgba(26, 29, 35, 0.95);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid var(--border-color);
+            padding: 0.75rem 1.5rem;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            background: rgba(30, 41, 59, 0.8);
-            backdrop-filter: blur(10px);
-            border-radius: 12px;
-            padding: 16px 24px;
-            border: 1px solid rgba(148, 163, 184, 0.1);
-            flex-shrink: 0; /* Prevent header from shrinking */
+            height: 70px;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 1000;
         }
 
-        .dashboard-title {
-            font-size: 20px;
-            font-weight: 600;
-            background: linear-gradient(135deg, #60a5fa 0%, #3b82f6 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
-
-        .status-indicator {
+        .nav-left {
             display: flex;
             align-items: center;
-            gap: 6px;
+        }
+
+        .logo {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, var(--success), #059669);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            margin-right: 0.75rem;
+        }
+
+        .nav-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #ffffff, #9ca3af);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            line-height: 1;
+        }
+
+        .nav-subtitle {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            margin-top: 2px;
+        }
+
+        .status-group {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .system-time {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+
+        .live-indicator {
+            display: flex;
+            align-items: center;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 0.8rem;
+            transition: all 0.3s ease;
+        }
+
+        .live-indicator.live {
+            background: rgba(16, 185, 129, 0.2);
+            border: 1px solid var(--success);
+            color: var(--success);
+        }
+
+        .live-indicator.offline {
+            background: rgba(239, 68, 68, 0.2);
+            border: 1px solid var(--danger);
+            color: var(--danger);
         }
 
         .status-dot {
-            width: 8px;
-            height: 8px;
+            width: 6px;
+            height: 6px;
             border-radius: 50%;
-            background: #10b981;
+            margin-right: 6px;
             animation: pulse 2s infinite;
         }
 
+        .live .status-dot {
+            background: var(--success);
+        }
+
+        .offline .status-dot {
+            background: var(--danger);
+        }
+
         @keyframes pulse {
-            0% { opacity: 1; }
-            50% { opacity: 0.5; }
-            100% { opacity: 1; }
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.7; transform: scale(1.1); }
         }
 
-        .status-text {
-            font-size: 12px;
-            font-weight: 500;
-            color: #94a3b8;
-        }
-
-        .dashboard-main {
+        /* Main Layout - CSS Grid */
+        .dashboard-grid {
+            position: fixed;
+            top: 70px;
+            left: 0;
+            right: 0;
+            bottom: 0;
             display: grid;
-            grid-template-columns: 1.5fr 1fr;
-            gap: 16px;
-            height: calc(100% - 80px);
+            grid-template-columns: 1fr 450px;
+            grid-template-rows: 1fr;
+            gap: 0;
+        }
+
+        /* Left Column - Video and Stats */
+        .left-column {
+            background: var(--secondary-bg);
+            border-right: 1px solid var(--border-color);
+            padding: 1.5rem;
+            display: grid;
+            grid-template-rows: 1fr 130px;
+            gap: 1rem;
+            overflow: hidden;
         }
 
         .video-section {
-            display: flex;
-            flex-direction: column;
-        }
-
-        .video-container {
-            flex: 1;
-            background: rgba(30, 41, 59, 0.8);
+            background: #000;
             border-radius: 12px;
             overflow: hidden;
             position: relative;
-            border: 1px solid rgba(148, 163, 184, 0.1);
-            min-height: 200px;
+            transition: all 0.3s ease;
+        }
+
+        .video-section.violation-alert {
+            box-shadow: 0 0 20px rgba(239, 68, 68, 0.5);
+            animation: violationFlash 0.8s ease-in-out;
+        }
+
+        @keyframes violationFlash {
+            0%, 100% { box-shadow: 0 0 20px rgba(239, 68, 68, 0.1); }
+            50% { box-shadow: 0 0 30px rgba(239, 68, 68, 0.8); }
         }
 
         #videoStream {
             width: 100%;
-            height: 90%;
+            height: 100%;
             object-fit: cover;
         }
 
         .video-overlay {
             position: absolute;
             top: 12px;
-            right: 12px;
-            background: rgba(239, 68, 68, 0.9);
+            left: 12px;
+            background: rgba(0, 0, 0, 0.8);
             color: white;
-            padding: 6px 12px;
+            padding: 6px 10px;
             border-radius: 6px;
-            font-size: 12px;
+            font-size: 0.75rem;
             font-weight: 600;
-            animation: blink 1s infinite;
-        }
-
-        @keyframes blink {
-            0%, 50% { opacity: 1; }
-            51%, 100% { opacity: 0.7; }
-        }
-
-        .counts-section {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 16px;
-            align-content: start;
-        }
-
-        .count-card {
-            background: rgba(30, 41, 59, 0.8);
-            backdrop-filter: blur(10px);
-            border-radius: 16px;
-            padding: 24px;
-            border: 1px solid rgba(148, 163, 184, 0.1);
             display: flex;
             align-items: center;
-            gap: 16px;
+        }
+
+        .live-dot {
+            width: 6px;
+            height: 6px;
+            background: var(--danger);
+            border-radius: 50%;
+            margin-right: 6px;
+            animation: pulse 1.5s infinite;
+        }
+
+        /* Stats Grid - Fixed Height */
+        .stats-section {
+            display: grid;
+            grid-template-columns: repeat(6, 1fr);
+            gap: 0.75rem;
+            height: 130px;
+        }
+
+        .stat-card {
+            background: var(--accent-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            padding: 0.75rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
             transition: all 0.3s ease;
             position: relative;
-            overflow: hidden;
-            min-height: 110px;
         }
 
-        .count-card::before {
-            content: '';
-            position: absolute;
-            left: 0;
-            top: 0;
-            bottom: 0;
-            width: 4px;
-            background: linear-gradient(180deg, #60a5fa 0%, #3b82f6 100%);
-        }
-
-        .count-card:hover {
+        .stat-card:hover {
             transform: translateY(-1px);
-            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
         }
 
-        .count-icon {
-            font-size: 36px;
-            filter: grayscale(0.3);
-            margin-left: 8px;
+        .stat-card.compliant {
+            border-color: var(--success);
+            background: rgba(16, 185, 129, 0.1);
         }
 
-        .count-info {
+        .stat-card.violation {
+            border-color: var(--danger);
+            background: rgba(239, 68, 68, 0.1);
+        }
+
+        .stat-card.warning {
+            border-color: var(--warning);
+            background: rgba(245, 158, 11, 0.1);
+        }
+
+        .stat-icon {
+            font-size: 1.5rem;
+            margin-bottom: 0.25rem;
+        }
+
+        .stat-value {
+            font-size: 1.8rem;
+            font-weight: 800;
+            margin-bottom: 0.125rem;
+            transition: all 0.5s ease;
+        }
+
+        .stat-label {
+            font-size: 0.7rem;
+            color: var(--text-secondary);
+            font-weight: 500;
+            line-height: 1.1;
+        }
+
+        /* Right Column - Compliance and Logs */
+        .right-column {
+            background: var(--primary-bg);
+            padding: 1.5rem;
+            display: grid;
+            grid-template-rows: 300px 1fr;
+            gap: 1rem;
+            overflow: hidden;
+        }
+
+        /* Compliance Panel - Fixed Height */
+        .compliance-panel {
+            background: var(--secondary-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 1.25rem;
+            height: 300px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .compliance-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+            flex-shrink: 0;
+        }
+
+        .compliance-title {
+            font-size: 1.125rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .alert-badge {
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .alert-badge.safe {
+            background: rgba(16, 185, 129, 0.2);
+            color: var(--success);
+        }
+
+        .alert-badge.warning {
+            background: rgba(245, 158, 11, 0.2);
+            color: var(--warning);
+        }
+
+        .alert-badge.danger {
+            background: rgba(239, 68, 68, 0.2);
+            color: var(--danger);
+        }
+
+        .compliance-metrics {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 0.75rem;
+            margin-bottom: 1rem;
+            flex-shrink: 0;
+        }
+
+        .metric-card {
+            text-align: center;
+            padding: 0.75rem;
+            background: var(--accent-bg);
+            border-radius: 8px;
+        }
+
+        .metric-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: 0.25rem;
+        }
+
+        .metric-value.success { color: var(--success); }
+        .metric-value.danger { color: var(--danger); }
+        .metric-value.warning { color: var(--warning); }
+
+        .metric-label {
+            font-size: 0.7rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            font-weight: 500;
+        }
+
+        .gauge-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 1rem;
             flex: 1;
         }
 
-        .count-label {
-            font-size: 12px;
-            font-weight: 500;
-            color: #94a3b8;
-            margin-bottom: 2px;
-            line-height: 1.2;
+        .mini-gauge {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background: conic-gradient(
+                var(--success) 0deg,
+                var(--success) var(--progress, 0deg),
+                var(--accent-bg) var(--progress, 0deg),
+                var(--accent-bg) 360deg
+            );
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
         }
 
-        .count-value {
-            font-size: 28px;
-            font-weight: 700;
-            color: #f1f5f9;
+        .gauge-inner {
+            width: 65px;
+            height: 65px;
+            background: var(--secondary-bg);
+            border-radius: 50%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
         }
 
-        .count-card.compliant::before {
-            background: linear-gradient(180deg, #10b981 0%, #059669 100%);
+        .gauge-percentage {
+            font-size: 1.25rem;
+            font-weight: 800;
+            color: var(--success);
+            line-height: 1;
         }
 
-        .count-card.non-compliant::before {
-            background: linear-gradient(180deg, #ef4444 0%, #dc2626 100%);
+        .gauge-label {
+            font-size: 0.6rem;
+            color: var(--text-secondary);
+            margin-top: 2px;
+            text-transform: uppercase;
         }
 
-        .count-card.machinery::before {
-            background: linear-gradient(180deg, #f59e0b 0%, #d97706 100%);
+        /* Activity Log - Bulletproof Container */
+        .activity-log {
+            background: var(--secondary-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            overflow: hidden;
+            display: grid;
+            grid-template-rows: auto 1fr;
+            position: relative;
+            min-height: 0;
+        }
+
+        .log-header {
+            background: var(--secondary-bg);
+            padding: 1.25rem 1.25rem 0 1.25rem;
+            border-bottom: 1px solid var(--border-color);
+            flex-shrink: 0;
+        }
+
+        .log-title {
+            font-size: 1.125rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 1rem;
+        }
+
+        .log-scroll-area {
+            padding: 0 1.25rem 1.25rem 1.25rem;
+            overflow-y: auto;
+            overflow-x: hidden;
+            height: 100%;
+            position: relative;
+        }
+
+        .log-scroll-area::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .log-scroll-area::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .log-scroll-area::-webkit-scrollbar-thumb {
+            background: var(--accent-bg);
+            border-radius: 3px;
+        }
+
+        .log-scroll-area {
+            scrollbar-width: thin;
+            scrollbar-color: var(--accent-bg) transparent;
+        }
+
+        .log-entries {
+            display: flex;
+            flex-direction: column;
+            gap: 0;
+            min-height: 100%;
+        }
+
+        .log-entry {
+            display: flex;
+            align-items: center;
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(55, 65, 81, 0.2);
+            animation: slideIn 0.3s ease-out;
+            font-size: 0.85rem;
+            flex-shrink: 0;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateX(-15px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        .log-time {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            margin-right: 8px;
+            min-width: 45px;
+            flex-shrink: 0;
+        }
+
+        .log-icon {
+            margin-right: 6px;
+            font-size: 0.9rem;
+            flex-shrink: 0;
+        }
+
+        .log-message {
+            flex: 1;
+            word-wrap: break-word;
+        }
+
+        .log-entry.violation { color: var(--danger); }
+        .log-entry.compliant { color: var(--success); }
+        .log-entry.warning { color: var(--warning); }
+
+        @media (max-width: 1200px) {
+            .dashboard-grid {
+                grid-template-columns: 1fr;
+                grid-template-rows: 1fr auto;
+            }
+            
+            .stats-section {
+                grid-template-columns: repeat(3, 1fr);
+            }
+            
+            .compliance-metrics {
+                grid-template-columns: 1fr 1fr;
+            }
         }
 
         @media (max-width: 768px) {
-            .dashboard-main {
+            .left-column,
+            .right-column {
+                padding: 1rem;
+            }
+            
+            .stats-section {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            
+            .compliance-metrics {
                 grid-template-columns: 1fr;
-                grid-template-rows: 200px 1fr;
-            }
-            
-            .dashboard-container {
-                padding: 12px;
-            }
-            
-            .dashboard-header {
-                padding: 12px 16px;
-            }
-            
-            .dashboard-title {
-                font-size: 16px;
-            }
-            
-            .counts-section {
-                gap: 8px;
-            }
-            
-            .count-card {
-                padding: 12px;
-                min-height: 70px;
-            }
-            
-            .count-icon {
-                font-size: 24px;
-            }
-            
-            .count-value {
-                font-size: 18px;
             }
         }
     </style>
 </head>
 <body>
-    <div class="dashboard-container">
-        <header class="dashboard-header">
-            <h1 class="dashboard-title">Safety Dashboard</h1>
-            <div class="status-indicator">
+    <nav class="navbar">
+        <div class="nav-left">
+            <div class="logo">🛡️</div>
+            <div>
+                <div class="nav-title">PPE Safety Monitor</div>
+                <div class="nav-subtitle">Powered by Computer Vision</div>
+            </div>
+        </div>
+        <div class="status-group">
+            <div class="system-time" id="systemTime">--:--:--</div>
+            <div class="live-indicator live" id="liveStatus">
                 <div class="status-dot"></div>
-                <span class="status-text">Live</span>
+                <span>LIVE</span>
             </div>
-        </header>
-        
-        <main class="dashboard-main">
-            <div class="video-section">
-                <div class="video-container">
-                    <img id="videoStream" src="http://192.168.1.12:5000/video" alt="Live Video Stream">
-                    <div class="video-overlay">
-                        <div class="video-status">LIVE</div>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="counts-section">
-                <div class="count-card">
-                    <div class="count-icon">👥</div>
-                    <div class="count-info">
-                        <h3 class="count-label">Total People</h3>
-                        <p class="count-value" id="personCount">0</p>
-                    </div>
-                </div>
-                
-                <div class="count-card compliant">
-                    <div class="count-icon">🪖</div>
-                    <div class="count-info">
-                        <h3 class="count-label">Hardhat Compliant</h3>
-                        <p class="count-value" id="hardhatCount">0</p>
-                    </div>
-                </div>
-                
-                <div class="count-card non-compliant">
-                    <div class="count-icon">⚠️</div>
-                    <div class="count-info">
-                        <h3 class="count-label">No Hardhat</h3>
-                        <p class="count-value" id="noHardhatCount">0</p>
-                    </div>
-                </div>
-                
-                <div class="count-card compliant">
-                    <div class="count-icon">🦺</div>
-                    <div class="count-info">
-                        <h3 class="count-label">Safety Vest Compliant</h3>
-                        <p class="count-value" id="safetyVestCount">0</p>
-                    </div>
-                </div>
-                
-                <div class="count-card non-compliant">
-                    <div class="count-icon">🚫</div>
-                    <div class="count-info">
-                        <h3 class="count-label">No Safety Vest</h3>
-                        <p class="count-value" id="noSafetyVestCount">0</p>
-                    </div>
-                </div>
-                
-                <div class="count-card machinery">
-                    <div class="count-icon">🏗️</div>
-                    <div class="count-info">
-                        <h3 class="count-label">Machinery Detected</h3>
-                        <p class="count-value" id="machineryCount">0</p>
-                    </div>
+        </div>
+    </nav>
+
+    <div class="dashboard-grid">
+        <!-- Left Column: Video and Stats -->
+        <div class="left-column">
+            <div class="video-section" id="videoSection">
+                <img id="videoStream" src="http://localhost:5000/video" alt="Live PPE Detection Feed" />
+                <div class="video-overlay">
+                    <div class="live-dot"></div>
+                    LIVE DETECTION
                 </div>
             </div>
-        </main>
-    </div>
-    
-    <script>
-        class SafetyDashboard {
-            constructor() {
-                this.countsEndpoint = 'http://192.168.1.12:5000/counts';
-                this.updateInterval = 1000;
-                this.init();
-            }
 
-            init() {
-                this.startDataFetching();
-                this.setupVideoStream();
-            }
+            <div class="stats-section">
+                <div class="stat-card" id="totalPeople">
+                    <div class="stat-icon">👥</div>
+                    <div class="stat-value" data-target="0">0</div>
+                    <div class="stat-label">Total People</div>
+                </div>
 
-            async fetchCounts() {
-                try {
-                    const response = await fetch(this.countsEndpoint);
-                    console.log(response)
-                    if (!response.ok) throw new Error('Failed to fetch counts');
-                    return await response.json();
-                } catch (error) {
-                    console.error('Error fetching counts:', error);
-                    return null;
-                }
-            }
+                <div class="stat-card compliant" id="hardhatCompliant">
+                    <div class="stat-icon">⛑️</div>
+                    <div class="stat-value" data-target="0">0</div>
+                    <div class="stat-label">Hardhat OK</div>
+                </div>
 
-            updateCountsDisplay(counts) {
-                if (!counts) return;
+                <div class="stat-card violation" id="noHardhat">
+                    <div class="stat-icon">🚫</div>
+                    <div class="stat-value" data-target="0">0</div>
+                    <div class="stat-label">No Hardhat</div>
+                </div>
 
-                const elements = {
-                    personCount: document.getElementById('personCount'),
-                    hardhatCount: document.getElementById('hardhatCount'),
-                    noHardhatCount: document.getElementById('noHardhatCount'),
-                    safetyVestCount: document.getElementById('safetyVestCount'),
-                    noSafetyVestCount: document.getElementById('noSafetyVestCount'),
-                    machineryCount: document.getElementById('machineryCount')
-                };
+                <div class="stat-card compliant" id="vestCompliant">
+                    <div class="stat-icon">🦺</div>
+                    <div class="stat-value" data-target="0">0</div>
+                    <div class="stat-label">Vest OK</div>
+                </div>
 
-                Object.keys(elements).forEach(key => {
-                    const element = elements[key];
-                    const dataKey = this.mapElementToDataKey(key);
-                    const newValue = counts[dataKey] || 0;
-                    const currentValue = parseInt(element.textContent);
-                    
-                    if (newValue !== currentValue) {
-                        this.animateValueChange(element, currentValue, newValue);
-                    }
-                });
-            }
+                <div class="stat-card violation" id="noVest">
+                    <div class="stat-icon">⚠️</div>
+                    <div class="stat-value" data-target="0">0</div>
+                    <div class="stat-label">No Vest</div>
+                </div>
 
-            mapElementToDataKey(elementId) {
-                const mapping = {
-                    'personCount': 'Person',
-                    'hardhatCount': 'Hardhat',
-                    'noHardhatCount': 'NO-Hardhat',
-                    'safetyVestCount': 'Safety Vest',
-                    'noSafetyVestCount': 'NO-Safety Vest',
-                    'machineryCount': 'Machinery'
-                };
-                return mapping[elementId];
-            }
+                <div class="stat-card warning" id="machinery">
+                    <div class="stat-icon">🏭</div>
+                    <div class="stat-value" data-target="0">0</div>
+                    <div class="stat-label">Machinery</div>
+                </div>
+            </div>
+        </div>
 
-            animateValueChange(element, start, end) {
-                const duration = 500;
-                const startTime = performance.now();
-                
-                const animate = (currentTime) => {
-                    const elapsed = currentTime - startTime;
-                    const progress = Math.min(elapsed / duration, 1);
-                    
-                    const current = Math.floor(start + (end - start) * progress);
-                    element.textContent = current;
-                    
-                    if (progress < 1) {
-                        requestAnimationFrame(animate);
-                    }
-                };
-                
-                requestAnimationFrame(animate);
-            }
+        <!-- Right Column: Compliance and Activity Log -->
+        <div class="right-column">
+            <!-- Compliance Panel -->
+            <div class="compliance-panel">
+                <div class="compliance-header">
+                    <h3 class="compliance-title">
+                        🎯 Safety Status
+                    </h3>
+                    <div class="alert-badge safe" id="alertBadge">ALL CLEAR</div>
+                </div>
 
-            async startDataFetching() {
-                const updateData = async () => {
-                    const counts = await this.fetchCounts();
-                    console.log(counts[0])
-                    this.updateCountsDisplay(counts[0]);
-                };
+                <div class="compliance-metrics">
+                    <div class="metric-card">
+                        <div class="metric-value success" id="safeWorkers">0</div>
+                        <div class="metric-label">Safe Workers</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-value danger" id="violations">0</div>
+                        <div class="metric-label">Violations</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-value warning" id="activeAlerts">0</div>
+                        <div class="metric-label">Active Alerts</div>
+                    </div>
+                </div>
 
-                await updateData();
-                setInterval(updateData, this.updateInterval);
-            }
-
-            setupVideoStream() {
-                const videoElement = document.getElementById('videoStream');
-                
-                videoElement.onerror = () => {
-                    console.error('Video stream error');
-                    videoElement.style.display = 'none';
-                    
-                    const fallback = document.createElement('div');
-                    fallback.className = 'video-fallback';
-                    fallback.innerHTML = `
-                        <div class="fallback-content">
-                            <div class="fallback-icon">📹</div>
-                            <p>Video stream unavailable</p>
+                <div class="gauge-container">
+                    <div class="mini-gauge" id="complianceGauge">
+                        <div class="gauge-inner">
+                            <div class="gauge-percentage" id="gaugePercentage">--</div>
+                            <div class="gauge-label">SAFE</div>
                         </div>
-                    `;
-                    videoElement.parentElement.appendChild(fallback);
-                };
+                    </div>
+                    <div style="flex: 1; padding-left: 1rem;">
+                        <div style="font-size: 0.875rem; color: var(--text-secondary); margin-bottom: 0.5rem;">Compliance Overview</div>
+                        <div style="font-size: 0.75rem; color: var(--text-secondary); line-height: 1.4;">
+                            Real-time safety compliance monitoring across all detected personnel. Target: 100% PPE compliance.
+                        </div>
+                    </div>
+                </div>
+            </div>
 
-                videoElement.src = `http://192.168.1.12:5000/video?t=${Date.now()}`;
+            <!-- Activity Log - Bulletproof Design -->
+            <div class="activity-log">
+                <div class="log-header">
+                    <div class="log-title">
+                        📋 Activity Log
+                    </div>
+                </div>
+                <div class="log-scroll-area" id="logScrollArea">
+                    <div class="log-entries" id="logEntries">
+                        <div class="log-entry">
+                            <span class="log-time">--:--</span>
+                            <span class="log-icon">🚀</span>
+                            <span class="log-message">PPE detection system initialized and ready</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentData = {};
+        let systemStartTime = Date.now();
+
+        // Update system time
+        function updateTime() {
+            const now = new Date();
+            document.getElementById('systemTime').textContent = now.toLocaleTimeString('en-US', { hour12: false });
+        }
+        setInterval(updateTime, 1000);
+        updateTime();
+
+        // Animated counter function
+        function animateValue(element, start, end, duration) {
+            const range = end - start;
+            const increment = range / (duration / 16);
+            let current = start;
+            
+            const timer = setInterval(() => {
+                current += increment;
+                if ((increment > 0 && current >= end) || (increment < 0 && current <= end)) {
+                    current = end;
+                    clearInterval(timer);
+                }
+                element.textContent = Math.round(current);
+            }, 16);
+        }
+
+        // Update statistics with smooth animations
+        function updateStats(data) {
+            
+            // console.log('Updating stats with data:', data);
+
+            const statCards = {
+                totalPeople: data.Person || 0,
+                hardhatCompliant: data.Hardhat || 0,
+                noHardhat: data['NO-Hardhat'] || 0,
+                vestCompliant: data['Safety Vest'] || 0,
+                noVest: data['NO-Safety Vest'] || 0,
+                machinery: data.Machinery || 0
+            };
+
+            Object.entries(statCards).forEach(([cardId, newValue]) => {
+                const card = document.getElementById(cardId);
+                const valueElement = card.querySelector('.stat-value');
+                const currentValue = parseInt(valueElement.textContent) || 0;
+                
+                if (currentValue !== newValue) {
+                    animateValue(valueElement, currentValue, newValue, 500);
+                }
+            });
+
+            // Update compliance metrics
+            const totalPeople = data.Person || 0;
+            const totalViolations = (data['NO-Hardhat'] || 0) + (data['NO-Safety Vest'] || 0);
+            const safeWorkers = Math.max(0, totalPeople - Math.ceil(totalViolations / 2));
+            const complianceRate = totalPeople > 0 ? Math.round(((data.Hardhat || 0) + (data['Safety Vest'] || 0)) / (totalPeople * 2) * 100) : 100;
+
+            // Update compliance dashboard
+            animateValue(document.getElementById('safeWorkers'), parseInt(document.getElementById('safeWorkers').textContent) || 0, safeWorkers, 500);
+            animateValue(document.getElementById('violations'), parseInt(document.getElementById('violations').textContent) || 0, totalViolations, 500);
+            animateValue(document.getElementById('activeAlerts'), parseInt(document.getElementById('activeAlerts').textContent) || 0, totalViolations > 0 ? 1 : 0, 500);
+
+            // Update gauge
+            const gaugeElement = document.getElementById('complianceGauge');
+            const gaugePercentage = document.getElementById('gaugePercentage');
+            gaugeElement.style.setProperty('--progress', `${(complianceRate / 100) * 360}deg`);
+            animateValue(gaugePercentage, parseInt(gaugePercentage.textContent) || 0, complianceRate, 800);
+
+            // Update alert badge
+            const alertBadge = document.getElementById('alertBadge');
+            if (totalViolations > 0) {
+                alertBadge.textContent = 'VIOLATIONS';
+                alertBadge.className = 'alert-badge danger';
+            } else if (totalPeople > 0) {
+                alertBadge.textContent = 'ALL CLEAR';
+                alertBadge.className = 'alert-badge safe';
+            } else {
+                alertBadge.textContent = 'STANDBY';
+                alertBadge.className = 'alert-badge warning';
             }
         }
 
-        document.addEventListener('DOMContentLoaded', () => {
-            new SafetyDashboard();
-        });
+        // Flash video on violation
+        function checkViolations(data) {
+            const violations = (data['NO-Hardhat'] || 0) + (data['NO-Safety Vest'] || 0);
+            const videoSection = document.getElementById('videoSection');
+            
+            if (violations > 0) {
+                videoSection.classList.add('violation-alert');
+                setTimeout(() => {
+                    videoSection.classList.remove('violation-alert');
+                }, 1200);
+            }
+        }
+
+        // Add log entry - BULLETPROOF VERSION
+        function addLogEntry(type, message, icon) {
+            const logEntries = document.getElementById('logEntries');
+            const logScrollArea = document.getElementById('logScrollArea');
+            
+            const timestamp = new Date().toLocaleTimeString('en-US', { 
+                hour12: false, 
+                hour: '2-digit', 
+                minute: '2-digit' 
+            });
+            
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${type}`;
+            entry.innerHTML = `
+                <span class="log-time">${timestamp}</span>
+                <span class="log-icon">${icon}</span>
+                <span class="log-message">${message}</span>
+            `;
+            
+            // Insert at the top
+            logEntries.insertBefore(entry, logEntries.firstChild);
+            
+            // Keep only the last 15 entries
+            const entries = logEntries.querySelectorAll('.log-entry');
+            if (entries.length > 15) {
+                entries[entries.length - 1].remove();
+            }
+            
+            // Scroll to top to show newest entry
+            logScrollArea.scrollTop = 0;
+        }
+
+        // Generate log messages - IMPROVED VERSION
+        function generateLogMessages(newData, oldData) {
+            // Only log when violations actually exist (> 0)
+            if ((newData['NO-Hardhat'] || 0) > 0 && (newData['NO-Hardhat'] || 0) !== (oldData['NO-Hardhat'] || 0)) {
+                addLogEntry('violation', 'Person detected without hardhat', '🚫');
+            }
+            
+            if ((newData['NO-Safety Vest'] || 0) > 0 && (newData['NO-Safety Vest'] || 0) !== (oldData['NO-Safety Vest'] || 0)) {
+                addLogEntry('violation', 'Person detected without safety vest', '⚠️');
+            }
+            
+            // Log when compliance is restored (violations go to 0)
+            if ((oldData['NO-Hardhat'] || 0) > 0 && (newData['NO-Hardhat'] || 0) === 0) {
+                addLogEntry('compliant', 'Hardhat compliance restored', '✅');
+            }
+            
+            if ((oldData['NO-Safety Vest'] || 0) > 0 && (newData['NO-Safety Vest'] || 0) === 0) {
+                addLogEntry('compliant', 'Safety vest compliance restored', '✅');
+            }
+            
+            if (newData.Person > (oldData.Person || 0)) {
+                const diff = newData.Person - (oldData.Person || 0);
+                addLogEntry('warning', `${diff} person(s) entered monitored area`, '👤');
+            }
+            
+            if (newData.Person < (oldData.Person || 0)) {
+                const diff = (oldData.Person || 0) - newData.Person;
+                addLogEntry('warning', `${diff} person(s) left monitored area`, '👤');
+            }
+            
+            if (newData.Machinery > (oldData.Machinery || 0)) {
+                addLogEntry('warning', 'Machinery detected in work area', '🏭');
+            }
+        }
+
+        // Fetch detection data
+        async function fetchDetectionData() {
+            try {
+                const response = await fetch('http://localhost:5000/counts');
+                
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                
+                const result = await response.json();
+                
+                // Get latest data from array
+                let latestData = {};
+                if (Array.isArray(result) && result.length > 0) {
+                    latestData = result[result.length - 1];
+                } else if (typeof result === 'object') {
+                    latestData = result;
+                }
+                
+                // Generate log messages for changes
+                generateLogMessages(latestData, currentData);
+                
+                // Update displays
+                updateStats(latestData);
+                checkViolations(latestData);
+                
+                // Update live status
+                document.getElementById('liveStatus').className = 'live-indicator live';
+                document.getElementById('liveStatus').innerHTML = '<div class="status-dot"></div><span>LIVE</span>';
+                
+                currentData = latestData;
+                
+            } catch (error) {
+                console.error('Fetch error:', error);
+                document.getElementById('liveStatus').className = 'live-indicator offline';
+                document.getElementById('liveStatus').innerHTML = '<div class="status-dot"></div><span>OFFLINE</span>';
+                
+                addLogEntry('warning', 'Connection lost. Attempting to reconnect...', '⚠️');
+            }
+        }
+
+         fetchDetectionData();
+        setInterval(fetchDetectionData, 2000);
+
     </script>
 </body>
-</html>
+
+        
+       
