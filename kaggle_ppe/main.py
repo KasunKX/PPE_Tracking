@@ -46,12 +46,25 @@ def interpolate_trail(trail, smooth_factor=3):
     return interp_points
 
 def gen_frames():
-    cap = cv2.VideoCapture(0)
+    # Use the sub-stream (lighter than main stream, usually /102 instead of /101)
+    url = "rtsp://admin:Wknlhna%401@192.168.66.92:554/Streaming/Channels/101"
+    cap = cv2.VideoCapture(url)
+
+    if not cap.isOpened():
+        print("❌ Failed to open RTSP stream")
+        return
 
     while True:
+        # Skip some frames to keep things real-time
+        for _ in range(2):  # skip 2 frames, keep 1
+            cap.read()
+
         ret, frame = cap.read()
         if not ret:
             continue
+
+        # Resize frame to reduce processing load
+        frame = cv2.resize(frame, (640, 360))
 
         # Initialize counts
         counts = {cls: 0 for cls in track_classes}
@@ -78,45 +91,35 @@ def gen_frames():
                     continue
 
                 counts[class_name] += 1
-
                 cx, cy = (x1 + x2) // 2, (y1 + y2) // 2
 
                 if class_name == "Person":
-                    # Update trail
                     if track_id not in person_trails:
                         person_trails[track_id] = []
                     person_trails[track_id].append((cx, cy))
                     person_trails[track_id] = person_trails[track_id][-MAX_TRAIL_LENGTH:]
 
-                    # Interpolate for smooth trail
                     smooth_trail = interpolate_trail(person_trails[track_id], smooth_factor=4)
 
-                    # Draw neon trail
                     for i in range(1, len(smooth_trail)):
-                        pt1 = smooth_trail[i - 1]
-                        pt2 = smooth_trail[i]
+                        pt1, pt2 = smooth_trail[i - 1], smooth_trail[i]
                         alpha = i / len(smooth_trail)
                         color = (0, int(255 * alpha), 255)
                         thickness = max(1, int(2 * alpha))
                         cv2.line(frame, pt1, pt2, color, thickness, lineType=cv2.LINE_AA)
 
-                    # Draw box around person
                     cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2, lineType=cv2.LINE_AA)
-
-                    # Draw live dot
                     cv2.circle(frame, (cx, cy), 5, (0, 0, 255), -1, lineType=cv2.LINE_AA)
 
                 else:
-                    # Other tracked classes: only labels
                     other_boxes.append([x1, y1, x2, y2])
                     other_labels.append(class_name)
 
-            # Annotate other objects
             if other_boxes:
                 other_detections = sv.Detections(
                     xyxy=np.array(other_boxes),
-                    class_id=np.arange(len(other_labels)),  # dummy IDs
-                    confidence=np.ones(len(other_labels))  # dummy confidence
+                    class_id=np.arange(len(other_labels)),
+                    confidence=np.ones(len(other_labels))
                 )
                 frame = label_annotator.annotate(
                     scene=frame,
@@ -124,16 +127,16 @@ def gen_frames():
                     labels=other_labels
                 )
 
-        # Update last 10 counts safely
         with pred_lock:
             last_predictions.append(counts.copy())
 
-        # Encode frame
-        _, buffer = cv2.imencode(".jpg", frame)
+        # Encode frame with lower JPEG quality for faster streaming
+        _, buffer = cv2.imencode(".jpg", frame, [cv2.IMWRITE_JPEG_QUALITY, 60])
         yield (
             b"--frame\r\n"
             b"Content-Type: image/jpeg\r\n\r\n" + buffer.tobytes() + b"\r\n"
         )
+
 
 @app.route("/video")
 def video():
